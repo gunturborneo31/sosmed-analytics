@@ -1,0 +1,299 @@
+@import 'tailwindcss';
+
+@source '../../vendor/livewire/livewire/src/**/*.blade.php';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../../app/Livewire/**/*.php';
+/* Kelas warna merek platform hidup di App\Support\SocialPlatform, bukan di
+   Blade — tanpa baris ini Tailwind tidak akan membuatkan kelasnya sama sekali
+   dan warnanya gagal tanpa pesan error apa pun. */
+@source '../../app/Support/**/*.php';
+
+/*
+| Sistem desain Social Media Analytics - Diskominfo Kutim (§7).
+|
+| Nama token brief  →  token Tailwind di sini
+|   --brand-500     →  --color-brand-500      (bg-brand-500, text-brand-500, …)
+|   --surface       →  --color-surface
+|   --text-strong   →  --color-ink-strong     (text-ink-strong)
+|   --text-body     →  --color-ink
+|   --text-muted    →  --color-ink-muted
+|
+| Aplikasi ini light-mode saja — sesuai "Permukaan — light mode" di §7.1.
+*/
+@theme {
+    /* Brand — gradient utama #3E68B2 → #3DC8F4 */
+    --color-brand-50: #eef6fd;
+    --color-brand-100: #d6ebfa;
+    --color-brand-300: #7fbeea;
+    --color-brand-500: #3e68b2;
+    --color-brand-700: #2e4e86;
+    --color-brand-900: #1c3253;
+    --color-brand-bright: #3dc8f4;
+
+    /* Permukaan */
+    --color-surface: #ffffff;
+    --color-surface-sunken: #f5f8fc;
+    --color-hairline: #e2e9f2;
+
+    /* Teks */
+    --color-ink-strong: #16233a;
+    --color-ink: #4a5a73;
+    --color-ink-muted: #8494ac;
+
+    /* Status */
+    --color-success: #16a46b;
+    --color-warning: #e0a03a;
+    --color-danger: #e05252;
+
+    /* Tipografi §7.2 */
+    --font-display: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    --font-sans: 'Inter', ui-sans-serif, system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+    --shadow-card: 0 1px 3px rgb(22 35 58 / 0.06), 0 8px 24px rgb(22 35 58 / 0.04);
+    --shadow-glow: 0 8px 32px rgb(61 200 244 / 0.28);
+
+    /* §7.5 — tiap animasi punya alasan */
+    --animate-count-up: countUp 0.8s cubic-bezier(0.16, 0.84, 0.44, 1) both;
+    --animate-slide-up: slideUp 0.5s cubic-bezier(0.16, 0.84, 0.44, 1) both;
+    --animate-shimmer: shimmer 1.6s linear infinite;
+    --animate-pulse-dot: pulseDot 2.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+    /*
+    | Batang bar tumbuh dari kiri. Memakai transform, bukan width: lebar
+    | sesungguhnya tetap ditulis server di atribut style, jadi batangnya benar
+    | walau animasinya tidak pernah jalan.
+    */
+    --animate-tumbuh: tumbuh 0.7s cubic-bezier(0.16, 0.84, 0.44, 1) both;
+    /*
+    | Gelombang pada menu Rekap. Dua lapis dengan arah dan kecepatan berbeda
+    | supaya terbaca berlapis, bukan satu bidang yang bergeser. Sengaja `linear`
+    | dan durasinya panjang — easing apa pun akan terlihat tersendat karena
+    | putarannya berulang tanpa henti.
+    */
+    --animate-gelombang: gelombang 9s linear infinite;
+    --animate-gelombang-balik: gelombang 14s linear infinite reverse;
+
+    @keyframes countUp {
+        from {
+            opacity: 0;
+            transform: translateY(0.25em);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(12px);
+        }
+        to {
+            opacity: 1;
+            transform: none;
+        }
+    }
+    @keyframes shimmer {
+        from {
+            background-position: -180% 0;
+        }
+        to {
+            background-position: 180% 0;
+        }
+    }
+    @keyframes tumbuh {
+        from {
+            transform: scaleX(0);
+        }
+        to {
+            transform: scaleX(1);
+        }
+    }
+    /*
+    | Bergeser tepat setengah lebar elemen. Path di dalamnya memuat dua periode
+    | yang identik, jadi pada akhir putaran gambarnya persis menimpa posisi awal
+    | — perulangannya tidak terlihat meloncat.
+    */
+    @keyframes gelombang {
+        from {
+            transform: translateX(0);
+        }
+        to {
+            transform: translateX(-50%);
+        }
+    }
+    @keyframes pulseDot {
+        0%,
+        100% {
+            opacity: 0.55;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 1;
+            transform: scale(1.35);
+        }
+    }
+}
+
+/*
+| Varian `ciut:` menyala saat sidebar dilipat. Kelasnya dipasang di <html> oleh
+| skrip kecil di <head> sebelum halaman digambar, jadi lebar sidebar sudah benar
+| sejak frame pertama — tidak ada kedip melebar-lalu-menyempit saat pindah halaman.
+*/
+@custom-variant dark (.dark &);
+
+/*
+| Palet gelap.
+|
+| Seluruh komponen memakai token semantik (bg-surface, text-ink-strong,
+| border-hairline), jadi mode gelap cukup menukar nilai variabelnya di sini —
+| tidak ada satu pun komponen yang perlu diberi kelas `dark:`.
+|
+| Perhatikan tangga brand ikut dibalik: `bg-brand-50` dipakai sebagai alas
+| lembut dan `text-brand-700` sebagai teks penegas. Di latar gelap peran itu
+| bertukar, maka 50/100 jadi biru pekat dan 700/900 jadi biru terang.
+|
+| Ditulis sebagai :root.dark agar pasti mengalahkan :root dari @theme.
+*/
+:root.dark {
+    --color-brand-50: #17263c;
+    --color-brand-100: #1f3555;
+    --color-brand-300: #4d8fcd;
+    --color-brand-500: #74acea;
+    --color-brand-700: #a8cff7;
+    --color-brand-900: #d6e9fc;
+    --color-brand-bright: #3dc8f4;
+
+    --color-surface: #151d2b;
+    --color-surface-sunken: #0d131d;
+    --color-hairline: #263346;
+
+    --color-ink-strong: #e9f0f9;
+    --color-ink: #adbccf;
+    --color-ink-muted: #75879e;
+
+    --color-success: #2fc78a;
+    --color-warning: #eeb75c;
+    --color-danger: #f07a76;
+
+    /* Bayangan di latar gelap bekerja lewat kegelapan yang lebih pekat. */
+    --shadow-card: 0 1px 3px rgb(0 0 0 / 0.4), 0 8px 24px rgb(0 0 0 / 0.32);
+    --shadow-glow: 0 8px 32px rgb(61 200 244 / 0.22);
+
+    color-scheme: dark;
+}
+
+@custom-variant ciut (.sidebar-ciut &);
+
+/* Gradient penuh hanya di logo/header, tombol aksi utama, dan Peta Denyut (§7.1). */
+@utility bg-brand-gradient {
+    background-image: linear-gradient(135deg, #3e68b2 0%, #3dc8f4 100%);
+}
+
+@utility text-brand-gradient {
+    background-image: linear-gradient(135deg, #3e68b2 0%, #3dc8f4 100%);
+    background-clip: text;
+    color: transparent;
+}
+
+/* Placeholder saat data sedang disinkron — menunjukkan bentuk konten, bukan spinner. */
+@utility skeleton {
+    background-image: linear-gradient(
+        90deg,
+        var(--color-surface-sunken) 0%,
+        #eaf1f9 40%,
+        var(--color-surface-sunken) 80%
+    );
+    background-size: 220% 100%;
+    animation: var(--animate-shimmer);
+}
+
+@layer base {
+    html {
+        -webkit-text-size-adjust: 100%;
+    }
+
+    body {
+        background-color: var(--color-surface-sunken);
+        color: var(--color-ink);
+        font-family: var(--font-sans);
+        font-size: 0.875rem;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+    }
+
+    h1,
+    h2,
+    h3 {
+        color: var(--color-ink-strong);
+        font-family: var(--font-display);
+        font-weight: 600;
+        letter-spacing: -0.01em;
+    }
+
+    :focus-visible {
+        outline: 2px solid var(--color-brand-500);
+        outline-offset: 2px;
+    }
+
+    /*
+    | Semua elemen yang bisa diklik memakai kursor tangan. Tailwind sengaja
+    | menyetel `cursor: default` pada <button> (mengikuti perilaku bawaan
+    | browser), jadi aturan ini mengembalikannya secara menyeluruh — termasuk
+    | label pilihan, ringkasan yang bisa dibuka, dan elemen ber-role tombol.
+    */
+    a[href],
+    button:not(:disabled),
+    label[for],
+    /* Label yang membungkus kontrolnya sendiri tidak punya atribut `for`. */
+    label:has(> input[type='checkbox']),
+    label:has(> input[type='radio']),
+    label:has(select),
+    summary,
+    select:not(:disabled),
+    [role='button']:not([aria-disabled='true']),
+    [role='tab'],
+    [role='option'],
+    input[type='checkbox']:not(:disabled),
+    input[type='radio']:not(:disabled),
+    input[type='submit']:not(:disabled),
+    input[type='file']:not(:disabled)::-webkit-file-upload-button {
+        cursor: pointer;
+    }
+
+    /* Bidang isian tetap memakai kursor teks meski induknya sebuah label. */
+    input[type='text'],
+    input[type='email'],
+    input[type='password'],
+    input[type='search'],
+    input[type='date'],
+    input[type='number'],
+    textarea {
+        cursor: text;
+    }
+
+    /* Yang sedang tidak bisa ditekan harus terasa tidak bisa ditekan.
+       Tombol ber-`wire:loading.attr="disabled"` ikut tertangkap lewat :disabled. */
+    button:disabled,
+    select:disabled,
+    [aria-disabled='true'] {
+        cursor: not-allowed;
+    }
+
+    [x-cloak] {
+        display: none !important;
+    }
+}
+
+/* §7.5 — semua animasi menghormati preferensi sistem. */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+}
