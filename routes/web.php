@@ -4,6 +4,7 @@ use App\Http\Controllers\Auth\AuthenticatedSessionController;
 use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Meta\ComplianceController;
 use App\Http\Controllers\Meta\InstagramOAuthController;
 use App\Http\Controllers\Meta\MetaOAuthController;
 use App\Livewire\Admin\CountyOverview;
@@ -20,6 +21,29 @@ use App\Livewire\Operator\OwnInsight;
 use Illuminate\Support\Facades\Route;
 
 Route::redirect('/', '/dashboard');
+
+/*
+|--------------------------------------------------------------------------
+| Kepatuhan Meta App Review (§14) — dipanggil server Meta, bukan pengguna,
+| jadi sengaja di luar middleware auth. Diverifikasi lewat signed_request
+| (App Secret), bukan sesi login, dan dikecualikan dari CSRF di
+| bootstrap/app.php.
+|--------------------------------------------------------------------------
+*/
+Route::get('/kebijakan-privasi', fn () => view('legal.privacy-policy'))->name('privacy-policy');
+
+Route::middleware('throttle:30,1')->group(function () {
+    Route::post('/oauth/instagram/deauthorize', [ComplianceController::class, 'instagramDeauthorize'])
+        ->name('oauth.instagram.deauthorize');
+    Route::post('/oauth/instagram/data-deletion', [ComplianceController::class, 'instagramDataDeletion'])
+        ->name('oauth.instagram.data-deletion');
+    Route::post('/oauth/meta/deauthorize', [ComplianceController::class, 'facebookDeauthorize'])
+        ->name('oauth.meta.deauthorize');
+    Route::post('/oauth/meta/data-deletion', [ComplianceController::class, 'facebookDataDeletion'])
+        ->name('oauth.meta.data-deletion');
+    Route::get('/hapus-data/status', [ComplianceController::class, 'dataDeletionStatus'])
+        ->name('oauth.data-deletion-status');
+});
 
 /*
 |--------------------------------------------------------------------------
