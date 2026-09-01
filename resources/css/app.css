@@ -197,6 +197,13 @@
     color: transparent;
 }
 
+@utility line-clamp-3 {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    overflow: hidden;
+}
+
 /* Placeholder saat data sedang disinkron — menunjukkan bentuk konten, bukan spinner. */
 @utility skeleton {
     background-image: linear-gradient(

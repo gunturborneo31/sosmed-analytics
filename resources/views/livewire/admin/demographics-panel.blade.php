@@ -19,14 +19,18 @@
     @if ($this->snapshotDate === null)
         <x-card>
             <x-empty-state
-                title="Belum ada data demografi"
-                description="Demografi ditarik dari izin instagram_manage_insights. Data akan muncul setelah minimal satu akun terhubung dan sinkronisasi pertama selesai."
+                :title="$this->isWebsitePlatform() ? 'Belum ada data demografi untuk '. $this->websitePlatformLabel() : 'Belum ada data demografi'"
+                :description="$this->isWebsitePlatform()
+                    ? $this->websiteAgeRangeLabel() . ' Saat ini belum ada artikel dengan view_count yang tersimpan untuk kategori '. strtolower($this->websitePlatformLabel()) .'. Jalankan scrape di halaman terkait agar data website bisa muncul di sini.'
+                    : 'Demografi ditarik dari izin instagram_manage_insights. Data akan muncul setelah minimal satu akun terhubung dan sinkronisasi pertama selesai.'"
             >
-                <x-slot:action>
-                    <x-button :href="route('admin.units', ['status' => 'belum'])" variant="secondary">
-                        Lihat OPD yang belum terhubung
-                    </x-button>
-                </x-slot:action>
+                @unless ($this->isWebsitePlatform())
+                    <x-slot:action>
+                        <x-button :href="route('admin.units', ['status' => 'belum'])" variant="secondary">
+                            Lihat OPD yang belum terhubung
+                        </x-button>
+                    </x-slot:action>
+                @endunless
             </x-empty-state>
         </x-card>
     @else
@@ -43,18 +47,20 @@
                     </h2>
                 </div>
 
-                <div class="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+                <div class="grid gap-6 @if ($this->isWebsitePlatformFor($kanal)) lg:grid-cols-1 @else lg:grid-cols-[1.5fr_1fr] @endif">
                     <livewire:admin.age-spectrum
                         :period="$period" :from="$from" :until="$until"
                         unit-type="" :platform="$kanal"
                         :key="'usia-'.$kanal.$period.$from.$until"
                     />
 
-                    <livewire:admin.gender-ratio
-                        :period="$period" :from="$from" :until="$until"
-                        unit-type="" :platform="$kanal"
-                        :key="'gender-'.$kanal.$period.$from.$until"
-                    />
+                    @unless ($this->isWebsitePlatformFor($kanal))
+                        <livewire:admin.gender-ratio
+                            :period="$period" :from="$from" :until="$until"
+                            unit-type="" :platform="$kanal"
+                            :key="'gender-'.$kanal.$period.$from.$until"
+                        />
+                    @endunless
                 </div>
 
                 <livewire:admin.region-distribution
@@ -78,18 +84,20 @@
                 </div>
             @endif
 
-            <div class="grid gap-6 lg:grid-cols-[1.5fr_1fr]">
+            <div class="grid gap-6 @if ($this->isWebsitePlatform()) lg:grid-cols-1 @else lg:grid-cols-[1.5fr_1fr] @endif">
                 <livewire:admin.age-spectrum
                     :period="$period" :from="$from" :until="$until"
                     unit-type="" :platform="$platform"
                     :key="'usia-gabungan-'.$period.$platform.$from.$until"
                 />
 
-                <livewire:admin.gender-ratio
-                    :period="$period" :from="$from" :until="$until"
-                    unit-type="" :platform="$platform"
-                    :key="'gender-gabungan-'.$period.$platform.$from.$until"
-                />
+                @unless ($this->isWebsitePlatform())
+                    <livewire:admin.gender-ratio
+                        :period="$period" :from="$from" :until="$until"
+                        unit-type="" :platform="$platform"
+                        :key="'gender-gabungan-'.$period.$platform.$from.$until"
+                    />
+                @endunless
             </div>
 
             <livewire:admin.region-distribution

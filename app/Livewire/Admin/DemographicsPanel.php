@@ -63,6 +63,28 @@ class DemographicsPanel extends Component
         return count($ada) > 1 ? $ada : [];
     }
 
+    public function isWebsitePlatform(): bool
+    {
+        return in_array($this->platform, ['website-opd', 'website-media-partner'], true);
+    }
+
+    public function isWebsitePlatformFor(string $platform): bool
+    {
+        return in_array($platform, ['website-opd', 'website-media-partner'], true);
+    }
+
+    public function websitePlatformLabel(): string
+    {
+        return $this->platform === 'website-media-partner'
+            ? 'Website Media Partner'
+            : 'Website OPD';
+    }
+
+    public function websiteAgeRangeLabel(): string
+    {
+        return 'Rentang usia yang dipakai untuk demografi website adalah 16–64 tahun. Data website diambil dari total views hasil scrape di halaman web terkait.';
+    }
+
     public function render()
     {
         return view('livewire.admin.demographics-panel', [

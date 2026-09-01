@@ -6,8 +6,9 @@
         ? [
             'Pantau' => [
                 ['admin.overview', 'Dashboard', 'ringkasan'],
-                ['admin.units', 'Perangkat Daerah', 'gedung'],
-                ['admin.news', 'Media Partner', 'berita'],
+                ['admin.units', 'Sosmed OPD', 'gedung'],
+                ['admin.web-opd', 'Web OPD', 'berita'],
+                ['admin.web-media-partner', 'Web Media Partner', 'berita'],
             ],
             'Analisis' => [
                 ['admin.demographics', 'Demografi', 'demografi'],

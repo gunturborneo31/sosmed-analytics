@@ -1,6 +1,6 @@
 @props(['period' => '30', 'unitTypes' => [], 'platforms' => [], 'showUnitType' => true])
 
-{{-- Filter §10.2 — periode, jenis OPD, platform. --}}
+{{-- Filter §10.2 — periode, jenis OPD, dan platform. --}}
 <div {{ $attributes->merge(['class' => 'flex flex-wrap items-end gap-3 rounded-2xl border border-hairline bg-surface p-4 shadow-card']) }}>
     <x-select
         label="Periode"
@@ -27,7 +27,7 @@
     @if ($showUnitType)
         <x-select label="Jenis OPD" wire:model.live="unitType" :options="$unitTypes" class="min-w-40" />
     @endif
-    <x-select label="Platform" wire:model.live="platform" :options="$platforms" class="min-w-40" />
+    <x-select label="Platform" wire:model.live="platform" :options="$platforms" class="min-w-44" />
 
     @isset($extra)
         {{ $extra }}

@@ -1,5 +1,5 @@
 <div class="space-y-6">
-    <x-page-header title="Media Partner" description="Kumpulkan berita dari media lokal berdasarkan topik dan rentang waktu.">
+    <x-page-header :title="$this->pageTitle" :description="$this->pageDescription">
         <x-slot:actions>
             <x-button
                 variant="danger"
@@ -26,12 +26,32 @@
             <button type="button" wire:click="$set('tab', '{{ $value }}')" @class(['border-b-2 px-3 py-2 text-sm font-medium', 'border-brand-500 text-brand-700' => $tab === $value, 'border-transparent text-ink-muted hover:text-ink' => $tab !== $value])>{{ $label }}</button>
         @endforeach
     </div>
-        <div class="flex items-center justify-between rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3">
-            <div>
-                <p class="text-xs font-medium uppercase tracking-wide text-brand-700">Total berita berhasil didapatkan</p>
-                <p class="mt-0.5 text-xs text-ink-muted">Seluruh berita tersimpan, tidak terpengaruh filter tabel.</p>
+        <div class="grid gap-3 md:grid-cols-2">
+                        <div class="grid grid-cols-2 gap-4">
+
+                <div class="rounded-2xl border border-hairline bg-surface px-4 py-3">
+                <p class="text-xs font-medium uppercase tracking-wide text-ink-muted">Total website</p>
+                <p class="mt-1 font-display text-xl font-bold text-ink-strong">{{ number_format($mediaSources->count(), 0, ',', '.') }}</p>
             </div>
-            <p class="font-display text-2xl font-bold text-brand-700">{{ number_format($this->totalArticles, 0, ',', '.') }}</p>
+            <div class="flex items-center justify-between rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3">
+                <div>
+                    <p class="text-xs font-medium uppercase tracking-wide text-brand-700">Total berita berhasil didapatkan</p>
+                    <p class="mt-0.5 text-xs text-ink-muted">Seluruh berita tersimpan, tidak terpengaruh filter tabel.</p>
+                </div>
+                <p class="font-display text-2xl font-bold text-brand-700">{{ number_format($this->metricCoverage['total'], 0, ',', '.') }}</p>
+            </div>
+            </div>
+            <div class="grid grid-cols-2 gap-4">
+                
+            <div class="rounded-2xl border border-hairline bg-surface px-4 py-3">
+                <p class="text-xs font-medium uppercase tracking-wide text-ink-muted">View terbaca</p>
+                <p class="mt-1 font-display text-xl font-bold text-ink-strong">{{ number_format($this->metricCoverage['view'], 0, ',', '.') }}</p>
+            </div>
+            <div class="rounded-2xl border border-hairline bg-surface px-4 py-3">
+                <p class="text-xs font-medium uppercase tracking-wide text-ink-muted">Pengunjung terbaca</p>
+                <p class="mt-1 font-display text-xl font-bold text-ink-strong">{{ number_format($this->metricCoverage['visitor'], 0, ',', '.') }}</p>
+            </div>
+            </div>
         </div>
 
         @if ($this->currentRun && in_array($this->currentRun->status, ['queued', 'running'], true))
@@ -72,20 +92,139 @@
                     <option value="title">Urutkan: judul</option>
                     <option value="media">Urutkan: media</option>
                     <option value="topic">Urutkan: topik</option>
+                    <option value="view_count">Urutkan: jumlah dilihat</option>
+                    <option value="visitor_count">Urutkan: jumlah pengunjung</option>
                 </select>
                 <button type="button" wire:click="sort('{{ $sortBy }}')" class="h-10 rounded-xl border border-hairline px-3 text-sm text-ink hover:bg-surface-sunken" title="Ubah arah pengurutan">
                     {{ $sortDirection === 'asc' ? 'Naik ↑' : 'Turun ↓' }}
                 </button>
+                <x-button type="button" variant="secondary" wire:click="checkMetricReadability">
+                    Cek keterbacaan metrik
+                </x-button>
                 <x-button type="button" variant="secondary" wire:click="resetArticleFilters">Reset filter</x-button>
             </div>
         </div>
         <x-card :padded="false">
-            <div class="overflow-x-auto"><table class="w-full min-w-[52rem] text-sm"><thead><tr class="border-b border-hairline bg-surface-sunken/60 text-left text-[11px] uppercase tracking-wide text-ink-muted"><th class="px-5 py-3"><button type="button" wire:click="sort('title')" class="hover:text-ink-strong">Berita {{ $sortBy === 'title' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}</button></th><th class="px-5 py-3"><button type="button" wire:click="sort('media')" class="hover:text-ink-strong">Media {{ $sortBy === 'media' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}</button></th><th class="px-5 py-3"><button type="button" wire:click="sort('topic')" class="hover:text-ink-strong">Topik {{ $sortBy === 'topic' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}</button></th><th class="px-5 py-3"><button type="button" wire:click="sort('published_at')" class="hover:text-ink-strong">Terbit {{ $sortBy === 'published_at' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}</button></th></tr></thead><tbody class="divide-y divide-hairline">
-                @forelse ($this->articles as $article)<tr class="transition hover:bg-surface-sunken"><td class="max-w-xl px-5 py-3"><a href="{{ $article->article_url }}" target="_blank" rel="noopener" class="font-medium text-ink-strong hover:text-brand-700 hover:underline">{{ $article->title }}</a>@if ($article->summary)<p class="mt-1 line-clamp-2 text-xs text-ink-muted">{{ strip_tags($article->summary) }}</p>@endif</td><td class="px-5 py-3 text-xs text-ink">{{ $article->mediaSource->name }}</td><td class="px-5 py-3"><div class="flex flex-wrap gap-1">@foreach ($article->searchTopics as $topic)<x-badge tone="brand">{{ $topic->keyword }}</x-badge>@endforeach</div></td><td class="whitespace-nowrap px-5 py-3 text-xs text-ink-muted">{{ $article->published_at?->translatedFormat('d M Y, H:i') ?? 'Tanggal tidak tersedia' }}</td></tr>@empty<tr><td colspan="4"><x-empty-state title="Belum ada berita" description="Tambahkan media dan topik, lalu jalankan scrape." /></td></tr>@endforelse
+            <div class="overflow-x-auto"><table class="w-full min-w-[64rem] text-sm"><thead><tr class="border-b border-hairline bg-surface-sunken/60 text-left text-[11px] uppercase tracking-wide text-ink-muted"><th class="px-5 py-3"><button type="button" wire:click="sort('title')" class="hover:text-ink-strong">Berita {{ $sortBy === 'title' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}</button></th><th class="px-5 py-3"><button type="button" wire:click="sort('media')" class="hover:text-ink-strong">Media {{ $sortBy === 'media' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}</button></th><th class="px-5 py-3"><button type="button" wire:click="sort('topic')" class="hover:text-ink-strong">Topik {{ $sortBy === 'topic' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}</button></th><th class="px-5 py-3"><button type="button" wire:click="sort('view_count')" class="hover:text-ink-strong">View {{ $sortBy === 'view_count' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}</button></th><th class="px-5 py-3"><button type="button" wire:click="sort('visitor_count')" class="hover:text-ink-strong">Pengunjung {{ $sortBy === 'visitor_count' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}</button></th><th class="px-5 py-3"><button type="button" wire:click="sort('published_at')" class="hover:text-ink-strong">Terbit {{ $sortBy === 'published_at' ? ($sortDirection === 'asc' ? '↑' : '↓') : '' }}</button></th></tr></thead><tbody class="divide-y divide-hairline">
+                @forelse ($this->articles as $article)<tr class="transition hover:bg-surface-sunken"><td class="max-w-xl px-5 py-3"><a href="{{ $article->article_url }}" target="_blank" rel="noopener" class="font-medium text-ink-strong hover:text-brand-700 hover:underline">{{ $article->title }}</a>@if ($article->summary)<p class="mt-1 line-clamp-3 text-xs text-ink-muted">{{ strip_tags($article->summary) }}</p>@endif</td><td class="px-5 py-3 text-xs text-ink">{{ $article->mediaSource->name }}</td><td class="px-5 py-3"><div class="flex flex-wrap gap-1">@foreach ($article->searchTopics as $topic)<x-badge tone="brand">{{ $topic->keyword }}</x-badge>@endforeach</div></td><td class="whitespace-nowrap px-5 py-3 text-xs text-ink">{{ $article->view_count !== null ? number_format($article->view_count, 0, ',', '.') : '—' }}</td><td class="whitespace-nowrap px-5 py-3 text-xs text-ink">{{ $article->visitor_count !== null ? number_format($article->visitor_count, 0, ',', '.') : '—' }}</td><td class="whitespace-nowrap px-5 py-3 text-xs text-ink-muted">{{ $article->published_at?->translatedFormat('d M Y, H:i') ?? 'Tanggal tidak tersedia' }}</td></tr>@empty<tr><td colspan="6"><x-empty-state title="Belum ada berita" description="Tambahkan media dan topik, lalu jalankan scrape." /></td></tr>@endforelse
             </tbody></table></div>@if ($this->articles->hasPages())<div class="border-t border-hairline px-5 py-3">{{ $this->articles->links('vendor.pagination.kutim') }}</div>@endif
         </x-card>
     @elseif ($tab === 'media')
-        <x-card title="Media sumber" subtitle="RSS akan diprioritaskan; URL utama dipakai sebagai fallback HTML"><x-slot:actions><x-button wire:click="create('media')"><x-icon name="tambah" class="size-4" />Tambah media</x-button></x-slot:actions><div class="divide-y divide-hairline">@forelse ($mediaSources as $source)<div class="flex items-center justify-between gap-4 py-3"><div class="min-w-0"><p class="truncate font-medium text-ink-strong">{{ $source->name }}</p><p class="truncate text-xs text-ink-muted">{{ $source->feed_url ?: $source->base_url }}</p></div><div class="flex shrink-0 gap-1"><button wire:click="edit('media', '{{ $source->id }}')" title="Ubah media" class="grid size-8 place-items-center rounded-lg hover:bg-brand-50"><x-icon name="pensil" class="size-4" /></button><button wire:click="delete('media', '{{ $source->id }}')" wire:confirm="Hapus media ini?" title="Hapus media" class="grid size-8 place-items-center rounded-lg hover:bg-danger/10 hover:text-danger"><x-icon name="sampah" class="size-4" /></button></div></div>@empty<p class="py-4 text-sm text-ink-muted">Belum ada media sumber.</p>@endforelse</div></x-card>
+        @php
+            $metricRun = $this->currentMediaMetricCheckRun;
+            $metricRunActive = $metricRun && in_array($metricRun->status, ['queued', 'running'], true);
+        @endphp
+        <x-card title="Media sumber" subtitle="RSS akan diprioritaskan; URL utama dipakai sebagai fallback HTML">
+            <x-slot:actions>
+                <x-button
+                    type="button"
+                    variant="secondary"
+                    wire:click="checkAllMediaSourceMetrics"
+                    wire:loading.attr="disabled"
+                    wire:target="checkAllMediaSourceMetrics"
+                    :disabled="$metricRunActive"
+                >
+                    <span wire:loading.remove wire:target="checkAllMediaSourceMetrics">{{ $metricRunActive ? 'Pemeriksaan berjalan...' : 'Cek ulang sekaligus' }}</span>
+                    <span wire:loading wire:target="checkAllMediaSourceMetrics">Menyiapkan pemeriksaan...</span>
+                </x-button>
+                <x-button wire:click="create('media')">
+                    <x-icon name="tambah" class="size-4" />
+                    Tambah media
+                </x-button>
+            </x-slot:actions>
+
+            @if ($metricRunActive)
+                <div wire:poll.2s class="mb-4 rounded-2xl border border-brand-100 bg-brand-50 px-4 py-3">
+                    <div class="flex flex-wrap items-center justify-between gap-3">
+                        <div class="flex items-center gap-3">
+                            <svg class="size-5 animate-spin text-brand-600" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle cx="12" cy="12" r="9" class="opacity-25" stroke="currentColor" stroke-width="3" />
+                                <path d="M21 12a9 9 0 0 0-9-9" class="opacity-90" stroke="currentColor" stroke-width="3" stroke-linecap="round" />
+                            </svg>
+                            <div>
+                                <p class="text-sm font-semibold text-brand-900">Sedang memeriksa keterbacaan metrik media...</p>
+                                <p class="text-xs text-ink-muted">
+                                    Selesai {{ $metricRun->processed_sources }} dari {{ $metricRun->total_sources }}
+                                    · View terbaca {{ $metricRun->view_readable_sources }}
+                                    · Pengunjung terbaca {{ $metricRun->visitor_readable_sources }}
+                                </p>
+                            </div>
+                        </div>
+                        <x-button
+                            type="button"
+                            variant="danger"
+                            wire:click="requestStopMediaMetricCheck"
+                            wire:loading.attr="disabled"
+                            wire:target="requestStopMediaMetricCheck"
+                        >
+                            <span wire:loading.remove wire:target="requestStopMediaMetricCheck">Stop pemeriksaan</span>
+                            <span wire:loading wire:target="requestStopMediaMetricCheck">Menghentikan...</span>
+                        </x-button>
+                    </div>
+                    <div class="mt-3 h-2 overflow-hidden rounded-full bg-white/70">
+                        <div
+                            class="h-full rounded-full bg-brand-gradient transition-all duration-500"
+                            style="width: {{ $metricRun->total_sources > 0 ? min(100, round($metricRun->processed_sources / $metricRun->total_sources * 100)) : 0 }}%"
+                        ></div>
+                    </div>
+                </div>
+            @elseif ($metricRun && in_array($metricRun->status, ['completed', 'failed', 'stopped'], true))
+                <div class="mb-4 flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-hairline bg-surface-sunken px-4 py-3 text-sm text-ink">
+                    <span>
+                        {{ $metricRun->message }}
+                        View terbaca {{ $metricRun->view_readable_sources }}/{{ $metricRun->total_sources }},
+                        pengunjung terbaca {{ $metricRun->visitor_readable_sources }}/{{ $metricRun->total_sources }}.
+                    </span>
+                    <span class="text-xs text-ink-muted">{{ $metricRun->updated_at?->translatedFormat('d M Y, H:i') }}</span>
+                </div>
+            @endif
+
+            <div class="divide-y divide-hairline">
+                @forelse ($mediaSources as $source)
+                    <div class="flex flex-wrap items-start justify-between gap-4 py-3">
+                        <div class="min-w-0 space-y-1.5">
+                            <p class="truncate font-medium text-ink-strong">{{ $source->name }}</p>
+                            <p class="truncate text-xs text-ink-muted">{{ $source->feed_url ?: $source->base_url }}</p>
+                            <div class="flex flex-wrap gap-2 text-xs">
+                                <x-badge :tone="$source->can_read_view_count === null ? 'neutral' : ($source->can_read_view_count ? 'success' : 'danger')">
+                                    View: {{ $source->can_read_view_count === null ? 'belum dicek' : ($source->can_read_view_count ? 'bisa dibaca' : 'tidak terbaca') }}
+                                </x-badge>
+                                <x-badge :tone="$source->can_read_visitor_count === null ? 'neutral' : ($source->can_read_visitor_count ? 'success' : 'danger')">
+                                    Pengunjung: {{ $source->can_read_visitor_count === null ? 'belum dicek' : ($source->can_read_visitor_count ? 'bisa dibaca' : 'tidak terbaca') }}
+                                </x-badge>
+                            </div>
+                            @if ($source->metrics_checked_at)
+                                <p class="text-[11px] text-ink-muted">
+                                    Cek terakhir: {{ $source->metrics_checked_at->translatedFormat('d M Y, H:i') }}
+                                    @if ($source->metrics_check_message)
+                                        · {{ $source->metrics_check_message }}
+                                    @endif
+                                </p>
+                            @endif
+                        </div>
+
+                        <div class="flex shrink-0 gap-1">
+                            <x-button
+                                type="button"
+                                size="sm"
+                                variant="secondary"
+                                wire:click="checkMediaSourceMetrics('{{ $source->id }}')"
+                                wire:loading.attr="disabled"
+                                wire:target="checkMediaSourceMetrics"
+                                :disabled="$metricRunActive"
+                            >
+                                <span wire:loading.remove wire:target="checkMediaSourceMetrics">Cek ulang</span>
+                                <span wire:loading wire:target="checkMediaSourceMetrics">Mengecek...</span>
+                            </x-button>
+                            <button wire:click="edit('media', '{{ $source->id }}')" title="Ubah media" class="grid size-8 place-items-center rounded-lg hover:bg-brand-50"><x-icon name="pensil" class="size-4" /></button>
+                            <button wire:click="delete('media', '{{ $source->id }}')" wire:confirm="Hapus media ini?" title="Hapus media" class="grid size-8 place-items-center rounded-lg hover:bg-danger/10 hover:text-danger"><x-icon name="sampah" class="size-4" /></button>
+                        </div>
+                    </div>
+                @empty
+                    <p class="py-4 text-sm text-ink-muted">Belum ada media sumber.</p>
+                @endforelse
+            </div>
+        </x-card>
     @elseif ($tab === 'topik')
         <x-card title="Topik pencarian" subtitle="Kata kunci yang dipakai scraper; waktu ditentukan pada filter berita."><x-slot:actions><x-button wire:click="create('topic')"><x-icon name="tambah" class="size-4" />Tambah topik</x-button></x-slot:actions><div class="divide-y divide-hairline">@forelse ($topics as $topic)<div class="flex items-center justify-between gap-4 py-3"><div><p class="font-medium text-ink-strong">{{ $topic->keyword }}</p>@if ($topic->description)<p class="text-xs text-ink-muted">{{ $topic->description }}</p>@endif</div><div class="flex shrink-0 gap-1"><button wire:click="edit('topic', '{{ $topic->id }}')" title="Ubah topik" class="grid size-8 place-items-center rounded-lg hover:bg-brand-50"><x-icon name="pensil" class="size-4" /></button><button wire:click="delete('topic', '{{ $topic->id }}')" wire:confirm="Hapus topik ini?" title="Hapus topik" class="grid size-8 place-items-center rounded-lg hover:bg-danger/10 hover:text-danger"><x-icon name="sampah" class="size-4" /></button></div></div>@empty<p class="py-4 text-sm text-ink-muted">Belum ada topik pencarian.</p>@endforelse</div></x-card>
     @else

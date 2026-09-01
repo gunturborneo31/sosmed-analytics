@@ -18,7 +18,32 @@ class AgeSpectrum extends Component
     #[Computed]
     public function chart(): array
     {
-        ['female' => $female, 'male' => $male] = AudienceAnalytics::make($this->period(), $this->scope())->ageByGender();
+        $websitePlatform = in_array($this->platform, ['website-opd', 'website-media-partner'], true);
+        $analytics = AudienceAnalytics::make($this->period(), $this->scope());
+
+        if ($websitePlatform) {
+            $age = $analytics->byAge();
+
+            return [
+                'chart' => ['type' => 'bar', 'height' => 220, 'stacked' => false],
+                'series' => [
+                    ['name' => '16-64', 'data' => [$age->get('16-64', 0)]],
+                ],
+                'colors' => ['#3E68B2'],
+                'plotOptions' => ['bar' => ['horizontal' => false, 'columnWidth' => '60%', 'borderRadius' => 8]],
+                'dataLabels' => ['enabled' => false],
+                'xaxis' => [
+                    'categories' => ['16-64'],
+                    'labels' => ['style' => ['fontFamily' => 'JetBrains Mono, monospace', 'fontSize' => '11px']],
+                    'axisBorder' => ['show' => false],
+                    'axisTicks' => ['show' => false],
+                ],
+                'yaxis' => ['labels' => ['style' => ['fontFamily' => 'JetBrains Mono, monospace', 'fontSize' => '11px']]],
+                'legend' => ['show' => false],
+            ];
+        }
+
+        ['female' => $female, 'male' => $male] = $analytics->ageByGender();
 
         return [
             'chart' => ['type' => 'bar', 'height' => 340, 'stacked' => true],

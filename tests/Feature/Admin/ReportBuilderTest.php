@@ -40,12 +40,13 @@ beforeEach(function () {
     ]);
 });
 
-it('menampilkan pratinjau rekap sebelum diunduh', function () {
+it('menampilkan ringkasan per platform dan akumulasi di kartu laporan', function () {
     Livewire::actingAs($this->admin)
         ->test(ReportBuilder::class)
         ->assertOk()
-        ->assertSee('Pratinjau Rekap')
-        ->assertSee('Dinas Kesehatan');
+        ->assertSee('Cakupan laporan')
+        ->assertSee('Rekapan demografi Instagram & Facebook')
+        ->assertSee('Unduh berkasnya');
 });
 
 it('mengunduh rekap Excel berisi seluruh OPD yang lolos filter', function () {
@@ -83,7 +84,7 @@ it('menolak ekspor dari peran yang tidak punya izin', function () {
         ->assertForbidden();
 });
 
-it('mempersempit rekap ke OPD yang dipilih', function () {
+it('membatasi cakupan laporan ke OPD yang dipilih', function () {
     $lain = OrganizationalUnit::factory()->create(['name' => 'Dinas Pariwisata']);
     $account = SocialAccount::factory()->create(['organizational_unit_id' => $lain->id]);
     InsightSnapshot::factory()->create([
@@ -96,27 +97,27 @@ it('mempersempit rekap ke OPD yang dipilih', function () {
         ->test(ReportBuilder::class)
         ->set('units', [$this->unit->id]);
 
-    // Daftar centang tetap memuat semua OPD; yang menyempit adalah isi rekapnya.
-    expect($component->get('preview')->pluck('unit_name')->all())
-        ->toBe(['Dinas Kesehatan']);
+    expect($component->get('selectedUnitNames')->all())->toBe(['Dinas Kesehatan']);
 
-    $component->assertSeeHtml('wire:key="pratinjau-'.$this->unit->id.'"')
-        ->assertDontSeeHtml('wire:key="pratinjau-'.$lain->id.'"');
+    $component->assertSee('Dinas Kesehatan')
+        ->assertSee('Cakupan')
+        ->assertDontSee('Dinas Pariwisata');
 });
 
 it('menaruh tombol unduh di kartu penyusun laporan, bukan kartu terpisah', function () {
     $html = Livewire::actingAs($this->admin)->test(ReportBuilder::class)->html();
 
-    $penyusun = mb_substr($html, mb_strpos($html, 'Susun Laporan'));
-    $penyusun = mb_substr($penyusun, 0, mb_strpos($penyusun, 'Pratinjau Rekap'));
+    $mulai = mb_strpos($html, 'Susun Laporan');
+    $penyusun = $mulai === false ? $html : mb_substr($html, $mulai);
 
-    // Ketiga langkah dan kedua tombol unduh harus berada di satu kartu, supaya
-    // admin tidak memilih OPD di satu tempat lalu mencari tombolnya di tempat lain.
-    expect($penyusun)->toContain('Atur cakupan laporan')
-        ->and($penyusun)->toContain('Pilih perangkat daerah')
+    // Pada halaman final, cakupan diatur di satu kartu dan tombol unduh tetap
+    // berada di sana tanpa menampilkan pemilihan periode atau platform yang tidak lagi dipakai.
+    expect($penyusun)->toContain('Cakupan laporan')
         ->and($penyusun)->toContain('Unduh berkasnya')
         ->and($penyusun)->toContain('wire:click="exportPdf"')
-        ->and($penyusun)->toContain('wire:click="exportExcel"');
+        ->and($penyusun)->toContain('wire:click="exportExcel"')
+        ->and($penyusun)->not->toContain('Pilih perangkat daerah')
+        ->and($penyusun)->not->toContain('Rincian Pembilang');
 });
 
 it('membacakan ulang isi laporan sebelum diunduh', function () {
@@ -127,7 +128,6 @@ it('membacakan ulang isi laporan sebelum diunduh', function () {
         // Tanpa memilih apa pun, laporan mencakup seluruh kabupaten.
         ->assertSee('Seluruh kabupaten')
         ->set('units', [$this->unit->id, $lain->id])
-        ->assertSee('2 perangkat daerah')
         ->assertSee('Dinas Kesehatan, Dinas Pariwisata');
 });
 
@@ -190,7 +190,7 @@ it('mengembalikan pilihan OPD dan pencarian saat filter diatur ulang', function 
         ->assertSet('platform', '');
 });
 
-it('menyebutkan cakupan periode, platform, dan OPD di laporan PDF', function () {
+it('menyebutkan cakupan OPD di laporan PDF tanpa menampilkan periode atau platform', function () {
     $konteks = Livewire::actingAs($this->admin)
         ->test(ReportBuilder::class)
         ->set('period', '7')
@@ -205,10 +205,11 @@ it('menyebutkan cakupan periode, platform, dan OPD di laporan PDF', function () 
 
     $teks = trim(preg_replace('/\s+/', ' ', strip_tags($html)));
 
-    // Pembaca laporan harus tahu angkanya disaring, bukan cakupan penuh.
-    expect($teks)->toContain('Instagram saja')
-        ->and($teks)->toContain('Dinas Kesehatan')
-        ->and($teks)->toContain('Dibatasi pada 1 perangkat daerah');
+    // Pembaca laporan cukup tahu cakupan OPD yang dipilih; detail periode dan platform
+    // tidak lagi ditampilkan di ringkasan PDF supaya fokus pada hasil akhir.
+    expect($teks)->toContain('Dinas Kesehatan')
+        ->and($teks)->toContain('Dibatasi pada 1 perangkat daerah')
+        ->and($teks)->not->toContain('Instagram saja');
 });
 
 it('memberi tahu bahwa angka Instagram dan Facebook digabung saat semua platform dipilih', function () {
@@ -226,10 +227,9 @@ it('memberi tahu bahwa angka Instagram dan Facebook digabung saat semua platform
 
     $teks = trim(preg_replace('/\s+/', ' ', strip_tags($html)));
 
-    expect($teks)->toContain('Instagram dan Facebook digabung')
-        // Porsi tiap kanal ikut dipecah supaya angka gabungan bisa dibaca.
-        ->and($teks)->toContain('Rincian per Platform')
-        ->and($teks)->toContain('Seluruh perangkat daerah aktif');
+    expect($teks)->toContain('Rincian per Platform')
+        ->and($teks)->toContain('Seluruh perangkat daerah aktif')
+        ->and($teks)->not->toContain('Instagram dan Facebook digabung');
 });
 
 it('mencantumkan platform tiap baris pada berkas Excel', function () {

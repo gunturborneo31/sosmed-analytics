@@ -17,6 +17,9 @@ final class AccountScope
     private ?string $platform = null;
 
     /** @var list<string> */
+    private array $platforms = [];
+
+    /** @var list<string> */
     private array $unitIds = [];
 
     private bool $connectedOnly = true;
@@ -36,6 +39,17 @@ final class AccountScope
     public function platform(?string $platform): self
     {
         $this->platform = $platform ?: null;
+        $this->platforms = $this->platform !== null ? [$this->platform] : [];
+
+        return $this;
+    }
+
+    /** @param list<string>|array<int, string>|null $platforms */
+    public function platforms(?array $platforms): self
+    {
+        $filtered = array_values(array_filter(array_map('strval', $platforms ?? [])));
+        $this->platforms = array_values(array_unique($filtered));
+        $this->platform = $this->platforms !== [] ? $this->platforms[0] : null;
 
         return $this;
     }
@@ -58,7 +72,7 @@ final class AccountScope
     /** Platform yang sedang disaring, atau null bila seluruh platform ikut. */
     public function platformFilter(): ?string
     {
-        return $this->platform;
+        return $this->platforms === [] ? null : ($this->platforms[0] ?? $this->platform);
     }
 
     /** @return list<string> ID OPD yang dipilih; kosong berarti seluruh kabupaten. */
@@ -81,6 +95,7 @@ final class AccountScope
         $salinan->unitIds = $this->unitIds;
         $salinan->connectedOnly = $this->connectedOnly;
         $salinan->platform = $platform ?: null;
+        $salinan->platforms = $salinan->platform !== null ? [$salinan->platform] : [];
 
         return $salinan;
     }
@@ -92,7 +107,8 @@ final class AccountScope
             ->join('organizational_units as ou', 'ou.id', '=', 'sa.organizational_unit_id')
             ->when($this->connectedOnly, fn ($q) => $q->where('sa.status', SocialAccount::STATUS_CONNECTED))
             ->when($this->unitType, fn ($q, $type) => $q->where('ou.type', $type))
-            ->when($this->platform, fn ($q, $platform) => $q->where('sa.platform', $platform))
+            ->when($this->platforms !== [], fn ($q) => $q->whereIn('sa.platform', $this->platforms))
+            ->when($this->platform !== null && $this->platforms === [], fn ($q) => $q->where('sa.platform', $this->platform))
             ->when($this->unitIds, fn ($q, $ids) => $q->whereIn('ou.id', $ids))
             ->where('ou.is_active', true);
     }

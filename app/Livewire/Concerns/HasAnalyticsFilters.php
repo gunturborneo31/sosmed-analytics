@@ -70,6 +70,8 @@ trait HasAnalyticsFilters
             '' => 'Semua platform',
             SocialAccount::PLATFORM_INSTAGRAM => 'Instagram',
             SocialAccount::PLATFORM_FACEBOOK => 'Facebook',
+            'website-opd' => 'Website OPD',
+            'website-media-partner' => 'Website Media Partner',
         ];
     }
 

@@ -7,10 +7,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-#[Fillable(['media_source_id', 'search_topic_id', 'title', 'article_url', 'summary', 'published_at'])]
+#[Fillable(['media_source_id', 'search_topic_id', 'title', 'article_url', 'summary', 'published_at', 'view_count', 'visitor_count'])]
 class ScrapedArticle extends Model
 {
-    protected $casts = ['published_at' => 'datetime'];
+    protected $casts = ['published_at' => 'datetime', 'view_count' => 'integer', 'visitor_count' => 'integer'];
 
     public function mediaSource(): BelongsTo
     {

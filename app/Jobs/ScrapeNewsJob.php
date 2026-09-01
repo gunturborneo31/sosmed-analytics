@@ -14,7 +14,12 @@ class ScrapeNewsJob implements ShouldQueue
 
     public int $timeout = 900;
 
-    public function __construct(public int $runId) {}
+    public function __construct(
+        public int $runId,
+        public ?string $domainFilter = null,
+        public bool $excludeDomainFilter = false,
+        public ?array $sourceIds = null
+    ) {}
 
     public function handle(NewsScraperService $scraper): void
     {
@@ -31,6 +36,9 @@ class ScrapeNewsJob implements ShouldQueue
                     $run->update(['processed_steps' => $processed, 'new_articles' => $newArticles, 'total_steps' => $total]);
                 },
                 fn (): bool => (bool) $run->fresh()?->stop_requested,
+                $this->domainFilter,
+                $this->excludeDomainFilter,
+                $this->sourceIds,
             );
 
             $run->update([

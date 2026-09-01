@@ -71,7 +71,10 @@ Route::middleware('auth')->group(function () {
         Route::get('/perbandingan', UnitComparison::class)->name('comparison');
         Route::get('/rekap', ReportBuilder::class)->name('recap');
         Route::get('/log-sinkronisasi', SyncLogTable::class)->name('sync-logs');
-        Route::get('/agregator-berita', NewsAggregator::class)->name('news');
+        Route::redirect('/agregator-berita', '/admin/web-media-partner');
+        Route::get('/web-opd', NewsAggregator::class)->name('web-opd');
+        Route::get('/web-media-partner', NewsAggregator::class)->name('web-media-partner');
+        Route::get('/news', NewsAggregator::class)->name('news');
     });
 
     Route::get('/admin/pengguna', UserDirectory::class)

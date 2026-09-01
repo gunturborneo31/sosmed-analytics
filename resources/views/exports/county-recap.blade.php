@@ -62,30 +62,7 @@
          sebagai "seluruh kabupaten, seluruh kanal" padahal laporannya disaring. --}}
     <table class="cakupan">
         <tr>
-            <td class="label">Periode</td>
-            <td>
-                {{ $period->from->translatedFormat('j F Y') }} &ndash; {{ $period->until->translatedFormat('j F Y') }}
-                &middot; {{ $period->days() }} hari
-                @if ($period->key !== 'custom')
-                    <span style="color:#8494AC">({{ $period->label() }})</span>
-                @endif
-            </td>
-        </tr>
-        <tr>
-            <td class="label">Platform</td>
-            <td>
-                @if (($platformFilter ?? null) !== null)
-                    <strong>{{ \App\Support\SocialPlatform::label($platformFilter) }} saja.</strong>
-                    Akun kanal lain tidak ikut dihitung sama sekali.
-                @else
-                    <strong>Instagram dan Facebook digabung.</strong>
-                    Setiap baris pada tabel perangkat daerah adalah penjumlahan kedua kanal,
-                    bukan angka satu kanal saja.
-                @endif
-            </td>
-        </tr>
-        <tr>
-            <td class="label">Perangkat daerah</td>
+            <td class="label">Cakupan</td>
             <td>
                 @if (($selectedUnits ?? collect())->isEmpty())
                     Seluruh perangkat daerah aktif se-kabupaten.

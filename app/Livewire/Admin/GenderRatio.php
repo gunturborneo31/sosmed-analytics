@@ -15,6 +15,10 @@ class GenderRatio extends Component
     #[Computed]
     public function ratio(): array
     {
+        if (in_array($this->platform, ['website-opd', 'website-media-partner'], true)) {
+            return ['female' => 0, 'male' => 0, 'unknown' => 0, 'total' => 0, 'female_pct' => 0.0, 'male_pct' => 0.0];
+        }
+
         $gender = AudienceAnalytics::make($this->period(), $this->scope())->byGender();
         $known = max($gender['F'] + $gender['M'], 1);
 

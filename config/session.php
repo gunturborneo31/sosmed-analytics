@@ -2,6 +2,14 @@
 
 use Illuminate\Support\Str;
 
+$appUrl = (string) env('APP_URL', 'http://localhost');
+$appHost = parse_url($appUrl, PHP_URL_HOST);
+$sessionDomain = env('SESSION_DOMAIN');
+
+if (! empty($sessionDomain) && $appHost && $sessionDomain !== $appHost) {
+    $sessionDomain = null;
+}
+
 return [
 
     /*
@@ -156,7 +164,7 @@ return [
     |
     */
 
-    'domain' => env('SESSION_DOMAIN'),
+    'domain' => $sessionDomain,
 
     /*
     |--------------------------------------------------------------------------
@@ -169,7 +177,9 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    'secure' => env('SESSION_SECURE_COOKIE') !== null
+        ? filter_var(env('SESSION_SECURE_COOKIE'), FILTER_VALIDATE_BOOLEAN)
+        : str_starts_with(strtolower($appUrl), 'https://'),
 
     /*
     |--------------------------------------------------------------------------

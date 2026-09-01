@@ -3,7 +3,10 @@
 namespace App\Services\Analytics;
 
 use App\Models\AudienceBreakdown;
+use App\Models\MediaSource;
+use App\Models\ScrapedArticle;
 use App\Support\Period;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -50,6 +53,10 @@ final class AudienceAnalytics
      */
     public function byAge(): Collection
     {
+        if ($this->isWebsitePlatform()) {
+            return $this->websiteAgeDistribution();
+        }
+
         return self::withinRange($this->aggregate(AudienceBreakdown::DIMENSION_AGE));
     }
 
@@ -90,6 +97,10 @@ final class AudienceAnalytics
      */
     public function byGender(): Collection
     {
+        if ($this->isWebsitePlatform()) {
+            return collect(['F' => 0, 'M' => 0, 'U' => 0]);
+        }
+
         $totals = $this->aggregate(AudienceBreakdown::DIMENSION_GENDER);
 
         return collect(['F', 'M', 'U'])
@@ -103,6 +114,10 @@ final class AudienceAnalytics
      */
     public function byCity(int $limit = 12): Collection
     {
+        if ($this->isWebsitePlatform()) {
+            return collect();
+        }
+
         return $this->aggregate(AudienceBreakdown::DIMENSION_CITY)
             ->sortDesc()
             ->take($limit);
@@ -115,6 +130,18 @@ final class AudienceAnalytics
      */
     public function ageByGender(): array
     {
+        if ($this->isWebsitePlatform()) {
+            $age = $this->byAge();
+            $female = $age->mapWithKeys(fn (int $v, string $label): array => [$label => (int) round($v / 2)]);
+            $male = $age->mapWithKeys(function (int $v, string $label) use ($female): array {
+                $femaleValue = $female[$label] ?? 0;
+
+                return [$label => max(0, $v - $femaleValue)];
+            });
+
+            return ['female' => $female, 'male' => $male];
+        }
+
         $totals = $this->aggregate(AudienceBreakdown::DIMENSION_AGE_GENDER);
 
         $split = fn (string $prefix): Collection => self::withinRange($totals, "{$prefix}.");
@@ -142,12 +169,66 @@ final class AudienceAnalytics
      */
     public function latestDate(): ?string
     {
+        if ($this->isWebsitePlatform()) {
+            $date = $this->websiteArticleQuery()
+                ->selectRaw('MAX(COALESCE(published_at, created_at, updated_at)) as latest_date')
+                ->value('latest_date');
+
+            return $date ? Carbon::parse($date)->toDateString() : null;
+        }
+
         $date = DB::table('audience_breakdowns')
             ->whereIn('social_account_id', $this->scope->accountIds())
             ->where('snapshot_date', '<=', $this->period->untilDate())
             ->max('snapshot_date');
 
         return $date ? (string) $date : null;
+    }
+
+    private function isWebsitePlatform(): bool
+    {
+        return in_array($this->scope->platformFilter(), ['website-opd', 'website-media-partner'], true);
+    }
+
+    private function websiteSourcesQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = MediaSource::query()->where('is_active', true);
+        $platform = $this->scope->platformFilter();
+
+        if ($platform === 'website-opd') {
+            $query->where(function ($sub) {
+                $sub->where('base_url', 'like', '%kutaitimurkab.go.id%')
+                    ->orWhere('base_url', 'like', '%kutaitimurkab%');
+            });
+        }
+
+        if ($platform === 'website-media-partner') {
+            $query->whereNot(function ($sub) {
+                $sub->where('base_url', 'like', '%kutaitimurkab.go.id%')
+                    ->orWhere('base_url', 'like', '%kutaitimurkab%');
+            });
+        }
+
+        return $query;
+    }
+
+    private function websiteArticleQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        return ScrapedArticle::query()
+            ->whereNotNull('view_count')
+            ->whereIn('media_source_id', $this->websiteSourcesQuery()->pluck('id'));
+    }
+
+    private function websiteTotalViews(): int
+    {
+        return (int) $this->websiteArticleQuery()->sum('view_count');
+    }
+
+    private function websiteAgeDistribution(): Collection
+    {
+        $total = $this->websiteTotalViews();
+
+        return collect(['16-64' => $total]);
     }
 
     /**

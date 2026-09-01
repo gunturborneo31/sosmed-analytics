@@ -6,7 +6,9 @@ use App\Exports\CountyRecapExport;
 use App\Livewire\Concerns\HasAnalyticsFilters;
 use App\Models\OrganizationalUnit;
 use App\Models\Setting;
+use App\Models\SocialAccount;
 use App\Services\Analytics\AccountScope;
+use App\Services\Analytics\AudienceAnalytics;
 use App\Services\Analytics\CountyAnalytics;
 use App\Services\Analytics\PublicInformationIndex;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -30,6 +32,9 @@ class ReportBuilder extends Component
 
     /** @var list<string> */
     public array $units = [];
+
+    /** @var list<string> */
+    public array $selectedPlatforms = [];
 
     /** Pencarian nama OPD — daftarnya panjang, mengetik lebih cepat dari menggulir. */
     public string $unitSearch = '';
@@ -116,7 +121,157 @@ class ReportBuilder extends Component
 
     public function resetFilters(): void
     {
-        $this->reset('period', 'from', 'until', 'platform', 'units', 'unitSearch');
+        $this->reset('period', 'from', 'until', 'platform', 'selectedPlatforms', 'units', 'unitSearch');
+    }
+
+    public function isWebsitePlatformFor(string $platform): bool
+    {
+        return in_array($platform, ['website-opd', 'website-media-partner'], true);
+    }
+
+    public function hasWebsitePlatformSelected(): bool
+    {
+        return ! empty(array_intersect(['website-opd', 'website-media-partner'], $this->selectedPlatforms));
+    }
+
+    /** @return list<string> */
+    public function visibleSelectedPlatforms(): array
+    {
+        return $this->selectedPlatforms !== []
+            ? $this->selectedPlatforms
+            : array_values(array_filter(array_keys($this->platformOptions()), fn (string $key): bool => $key !== ''));
+    }
+
+    /** @return list<array{platform:string, label:string, pembilang:int, penyebut:int, persentase:float}> */
+    public function selectedPlatformCalculations(): array
+    {
+        $platforms = $this->visibleSelectedPlatforms();
+
+        $rows = array_values(array_map(function (string $platform): array {
+            $summary = PublicInformationIndex::make(
+                $this->period(),
+                AccountScope::make()->platform($platform)->units($this->units),
+                $this->population > 0 ? $this->population : null,
+            )->summary();
+
+            return [
+                'platform' => $platform,
+                'label' => $this->platformOptions()[$platform] ?? $platform,
+                'pembilang' => (int) $summary['pembilang'],
+                'penyebut' => (int) $summary['penyebut'],
+                'persentase' => (float) $summary['persentase'],
+            ];
+        }, $platforms));
+
+        $totalPembilang = array_sum(array_map(fn (array $row): int => (int) $row['pembilang'], $rows));
+        $denominator = $this->population > 0
+            ? $this->population
+            : (int) collect($rows)->first()['penyebut'] ?? 0;
+        $totalPersentase = $denominator > 0 ? round(($totalPembilang / $denominator) * 100, 2) : 0.0;
+
+        $rows[] = [
+            'platform' => 'all',
+            'label' => 'Akumulasi semua',
+            'pembilang' => $totalPembilang,
+            'penyebut' => $denominator,
+            'persentase' => $totalPersentase,
+        ];
+
+        return $rows;
+    }
+
+    /** @return list<array{platform:string, label:string, age:list<array{label:string, count:int}>, gender:list<array{label:string, count:int, percent:float}>}> */
+    #[Computed]
+    public function platformAudienceSummaries(): array
+    {
+        $platforms = [
+            'instagram' => 'Instagram',
+            'facebook' => 'Facebook',
+            'combined' => 'Akumulasi Instagram + Facebook',
+        ];
+
+        $summaries = [];
+
+        foreach ($platforms as $key => $label) {
+            $scope = match ($key) {
+                'instagram' => AccountScope::make()->platform('instagram')->units($this->units),
+                'facebook' => AccountScope::make()->platform('facebook')->units($this->units),
+                'combined' => AccountScope::make()->platforms(['instagram', 'facebook'])->units($this->units),
+            };
+
+            $age = AudienceAnalytics::make($this->period(), $scope)->byAge();
+            $gender = AudienceAnalytics::make($this->period(), $scope)->byGender();
+            $genderTotal = max($gender->sum(), 1);
+
+            $summaries[] = [
+                'platform' => $key,
+                'label' => $label,
+                'age' => $age
+                    ->map(fn (int $count, string $bucket): array => ['label' => $bucket, 'count' => $count])
+                    ->values()
+                    ->all(),
+                'gender' => [
+                    ['label' => 'Perempuan', 'count' => (int) $gender['F'], 'percent' => round(($gender['F'] / $genderTotal) * 100, 1)],
+                    ['label' => 'Laki-laki', 'count' => (int) $gender['M'], 'percent' => round(($gender['M'] / $genderTotal) * 100, 1)],
+                    ['label' => 'Tidak diketahui', 'count' => (int) $gender['U'], 'percent' => round(($gender['U'] / $genderTotal) * 100, 1)],
+                ],
+            ];
+        }
+
+        return $summaries;
+    }
+
+    /** @return list<array{label:string, count:int, penyebut:int, persentase:float}> */
+    #[Computed]
+    public function combinedAgeCalculations(): array
+    {
+        $scope = AccountScope::make()->platforms(['instagram', 'facebook'])->units($this->units);
+        $age = AudienceAnalytics::make($this->period(), $scope)->byAge();
+        $penyebut = $this->population > 0 ? $this->population : 1;
+
+        return $age
+            ->map(fn (int $count, string $label): array => [
+                'label' => $label,
+                'count' => $count,
+                'penyebut' => $penyebut,
+                'persentase' => $penyebut > 0 ? round(($count / $penyebut) * 100, 2) : 0.0,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /** @return list<array{platform:string, label:string, age:list<array{label:string, count:int}>}> */
+    #[Computed]
+    public function websiteAudienceSummaries(): array
+    {
+        $platforms = [
+            'website-opd' => 'Website OPD',
+            'website-media-partner' => 'Website Media Partner',
+            'combined' => 'Akumulasi Website OPD + Website Media Partner',
+        ];
+
+        $summaries = [];
+
+        foreach ($platforms as $key => $label) {
+            $scope = match ($key) {
+                'website-opd' => AccountScope::make()->platform('website-opd')->units($this->units),
+                'website-media-partner' => AccountScope::make()->platform('website-media-partner')->units($this->units),
+                'combined' => AccountScope::make()->platforms(['website-opd', 'website-media-partner'])->units($this->units),
+            };
+
+            $age = AudienceAnalytics::make($this->period(), $scope)->byAge();
+
+            $summaries[] = [
+                'platform' => $key,
+                'label' => $label,
+                'age' => $age
+                    ->map(fn (int $count, string $bucket): array => ['label' => $bucket, 'count' => $count])
+                    ->values()
+                    ->all(),
+            ];
+        }
+
+        return $summaries;
     }
 
     /**
@@ -126,9 +281,7 @@ class ReportBuilder extends Component
      */
     public function scope(): AccountScope
     {
-        return AccountScope::make()
-            ->platform($this->platform)
-            ->units($this->units);
+        return AccountScope::make()->units($this->units);
     }
 
     /** @return array<string, mixed> */
